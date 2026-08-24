@@ -1,6 +1,6 @@
 const express = require('express');
 const bodyParser = require('body-parser');
-const connection = require('./connector');
+const data = require('./data');            // seed data as fallback
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -9,23 +9,41 @@ const PORT = process.env.PORT || 8080;
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
+// ── MySQL connection (optional — falls back to in-memory if unavailable) ──────
+let connection = null;
+try {
+    const mysql = require('mysql');
+    try { require('dotenv').config(); } catch (e) { /* optional */ }
+
+    const con = mysql.createConnection({
+        host:     process.env.DB_HOST     || 'localhost',
+        user:     process.env.DB_USER     || 'root',
+        password: process.env.DB_PASSWORD || 'Nil@1308',
+        database: process.env.DB_NAME     || 'test',
+        multipleStatements: true,
+        connectTimeout: 8000
+    });
+
+    con.connect(function (err) {
+        if (err) {
+            console.log('MySQL unavailable — using in-memory data:', err.message);
+            connection = null;
+        } else {
+            console.log('Connection established with Database!');
+            connection = con;
+        }
+    });
+} catch (e) {
+    console.log('mysql module error — using in-memory data');
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
-/**
- * Returns true only when value is a string of pure digits (no dot, no sign).
- */
 function isDigitOnly(value) {
     if (value === undefined || value === null) return false;
     return /^\d+$/.test(String(value).trim());
 }
-
-function isValidLimit(value) {
-    if (!isDigitOnly(value)) return false;
-    return parseInt(value, 10) > 0;        // limit must be > 0
-}
-
-function isValidOffset(value) {
-    return isDigitOnly(value);             // offset can be 0
-}
+function isValidLimit(value)  { return isDigitOnly(value) && parseInt(value, 10) > 0; }
+function isValidOffset(value) { return isDigitOnly(value); }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 /**
@@ -33,22 +51,27 @@ function isValidOffset(value) {
  * Query params:
  *   limit  – positive integer  (default: 10)
  *   offset – non-negative integer (default: 0)
- *
- * Invalid values (strings, floats, negatives) fall back to defaults silently.
+ * Invalid values fall back to defaults silently.
  */
 app.get('/api/orders', (req, res) => {
     const limit  = isValidLimit(req.query.limit)   ? parseInt(req.query.limit,  10) : 10;
     const offset = isValidOffset(req.query.offset) ? parseInt(req.query.offset, 10) : 0;
 
-    const sql = 'SELECT * FROM orders LIMIT ? OFFSET ?';
-
-    connection.query(sql, [limit, offset], (err, results) => {
-        if (err) {
-            console.error('DB query error:', err.message);
-            return res.status(500).json({ error: 'Internal server error' });
-        }
+    // ── Use MySQL if connected, else in-memory data ───────────────────────────
+    if (connection) {
+        connection.query('SELECT * FROM orders LIMIT ? OFFSET ?', [limit, offset], (err, results) => {
+            if (err) {
+                console.error('DB query error:', err.message);
+                // fallback to in-memory on query error
+                return res.status(200).json(data.slice(offset, offset + limit));
+            }
+            return res.status(200).json(results);
+        });
+    } else {
+        // In-memory fallback — same data, same structure
+        const results = data.slice(offset, offset + limit);
         return res.status(200).json(results);
-    });
+    }
 });
 
 // ── Health check ──────────────────────────────────────────────────────────────
