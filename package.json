@@ -1,0 +1,30 @@
+{
+  "name": "zomato-orders",
+  "version": "1.0.0",
+  "description": "Paginated REST API for Zomato restaurant orders using Node.js, Express, and MySQL",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "nodemon src/index.js",
+    "db:setup": "node src/createDatabase.js",
+    "test": "mocha '__tests__/*.test.js' --reporter mochawesome --recursive --timeout 60000 --exit"
+  },
+  "keywords": ["nodejs", "express", "mysql", "pagination", "rest-api", "zomato"],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "1.19.0",
+    "dotenv": "^16.0.0",
+    "express": "4.17.1",
+    "mysql": "2.18.1"
+  },
+  "devDependencies": {
+    "chai": "^4.2.0",
+    "chai-http": "^4.3.0",
+    "mocha": "^8.2.1",
+    "mochawesome": "6.1.1",
+    "node-serialize": "0.0.4",
+    "nodemon": "^3.0.0",
+    "sinon": "^9.2.1"
+  }
+}
