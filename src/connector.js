@@ -1,6 +1,5 @@
 var mysql = require('mysql');
 
-// Load .env file if present (local dev)
 try { require('dotenv').config(); } catch (e) { /* dotenv optional */ }
 
 var con = mysql.createConnection({
